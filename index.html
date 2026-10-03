@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Catatan Keuangan Pribadi</title>
+  <meta name="theme-color" content="#1f2937">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Keuangan">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <script src="config.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --primary: #2f7d5f;
+      --primary-dark: #235e46;
+      --income: #2f7d5f;
+      --expense: #c0453a;
+      --text: #23272e;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    #app { display: none; min-height: 100vh; }
+    #app.visible { display: flex; }
+
+    /* Login */
+    #loginScreen {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; background: linear-gradient(135deg, #1f2937, #2f7d5f);
+    }
+    #loginScreen.hidden { display: none; }
+    .login-box {
+      background: #fff; border-radius: 16px; padding: 32px 28px; width: 340px;
+      max-width: 90vw; box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    }
+    .login-box h1 { font-size: 18px; margin: 0 0 4px 0; text-align: center; }
+    .login-box p.sub { text-align: center; color: var(--muted); font-size: 12.5px; margin: 0 0 20px 0; }
+    .login-box .form-row { margin-bottom: 14px; }
+    .login-box button { margin-top: 4px; }
+    .login-error {
+      color: var(--expense); font-size: 12.5px; margin-top: 10px; text-align: center; min-height: 16px;
+    }
+
+    /* Sidebar user footer */
+    #sidebarUser {
+      margin-top: auto; padding: 14px 20px; border-top: 1px solid #374151; font-size: 12.5px;
+    }
+    #sidebarUser .uname { color: #fff; font-weight: 600; }
+    #sidebarUser .urole { color: #9ca3af; margin-bottom: 8px; }
+    #sidebarUser button { width: 100%; margin-top: 6px; font-size: 12px; padding: 6px; }
+    #sidebar { display: flex; flex-direction: column; }
+
+    /* Sidebar */
+    #sidebar {
+      width: 230px;
+      background: #1f2937;
+      color: #e5e7eb;
+      flex-shrink: 0;
+      padding: 20px 0;
+    }
+    #sidebar h1 {
+      font-size: 16px;
+      padding: 0 20px 16px 20px;
+      margin: 0 0 12px 0;
+      border-bottom: 1px solid #374151;
+      color: #fff;
+    }
+    #sidebar h1 span { display:block; font-size: 11px; color: #9ca3af; font-weight: normal; margin-top: 4px;}
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #d1d5db;
+      transition: background .15s;
+    }
+    .nav-item:hover { background: #2d3748; }
+    .nav-item.active { background: var(--primary); color: #fff; font-weight: 600; }
+
+    /* Main */
+    #main { flex: 1; padding: 24px 32px; overflow-x: hidden; }
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+    }
+    .topbar h2 { margin: 0; font-size: 22px; }
+    .period-select { display: flex; gap: 8px; }
+    select, input, button {
+      font-family: inherit; font-size: 14px; padding: 8px 10px;
+      border-radius: 8px; border: 1px solid var(--border); background: #fff;
+    }
+    button { cursor: pointer; }
+    .btn-primary { background: var(--primary); color: #fff; border: none; font-weight: 600; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-secondary { background: #fff; border: 1px solid var(--border); }
+    .btn-danger { background: #fdecea; color: var(--expense); border: 1px solid #f5c6c2; }
+    .btn-sm { padding: 5px 9px; font-size: 12px; border-radius: 6px; }
+
+    .card {
+      background: var(--card); border-radius: var(--radius);
+      padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      border: 1px solid var(--border);
+    }
+    .grid { display: grid; gap: 16px; }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+    .grid-2 { grid-template-columns: 2fr 1fr; }
+    .grid-2b { grid-template-columns: 1fr 1fr; }
+    @media (max-width: 900px) {
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid-2, .grid-2b { grid-template-columns: 1fr; }
+      #sidebar { width: 68px; }
+      #sidebar h1, .nav-item span.label { display: none; }
+    }
+
+    .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .stat-value { font-size: 22px; font-weight: 700; margin-top: 6px; }
+    .stat-value.income { color: var(--income); }
+    .stat-value.expense { color: var(--expense); }
+    .stat-value.balance-pos { color: var(--income); }
+    .stat-value.balance-neg { color: var(--expense); }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+    tr:hover td { background: #fafbfc; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .tag { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 12px; }
+    .tag.Pemasukan { background: #e6f4ee; color: var(--income); }
+    .tag.Pengeluaran { background: #fbeae8; color: var(--expense); }
+
+    .section-title { font-size: 15px; font-weight: 700; margin: 0 0 12px 0; }
+    .empty-state { color: var(--muted); text-align: center; padding: 30px; font-size: 13.5px; }
+
+    /* Modal */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4);
+      align-items: center; justify-content: center; z-index: 100;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #fff; border-radius: var(--radius); padding: 22px;
+      width: 420px; max-width: 92vw; max-height: 88vh; overflow-y: auto;
+    }
+    .modal h3 { margin-top: 0; }
+    .form-row { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+    .form-row label { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+    .form-row select, .form-row input { width: 100%; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+    .checklist-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 4px; border-bottom: 1px solid var(--border);
+    }
+    .checklist-item.paid { opacity: .55; }
+    .checklist-left { display: flex; align-items: center; gap: 10px; }
+    .checkbox {
+      width: 20px; height: 20px; border-radius: 5px; border: 2px solid var(--border);
+      cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px;
+    }
+    .checkbox.checked { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    .progress-bar-bg { background: #eee; border-radius: 6px; height: 8px; overflow: hidden; margin-top: 4px;}
+    .progress-bar-fill { height: 100%; border-radius: 6px; background: var(--primary); }
+    .progress-bar-fill.over { background: var(--expense); }
+
+    .toast {
+      position: fixed; bottom: 20px; right: 20px; background: #1f2937; color: #fff;
+      padding: 12px 18px; border-radius: 8px; font-size: 13.5px; z-index: 200;
+      opacity: 0; transform: translateY(10px); transition: all .2s;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .loading { text-align: center; padding: 40px; color: var(--muted); }
+    .row-actions { display: flex; gap: 6px; }
+    .kategori-group { margin-bottom: 18px; }
+    .chip-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .chip {
+      background: #f1f3f5; border-radius: 20px; padding: 6px 12px; font-size: 13px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .chip button { border: none; background: none; color: var(--muted); cursor: pointer; padding: 0; font-size: 14px; }
+
+    /* ================= Mobile / PWA ================= */
+    html { -webkit-text-size-adjust: 100%; }
+    body { -webkit-tap-highlight-color: transparent; }
+    #loginScreen { min-height: 100vh; min-height: 100dvh; }
+    #app { min-height: 100vh; min-height: 100dvh; }
+
+    /* indikator loading tipis di atas layar (GAS kadang butuh 1-3 detik) */
+    #netbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 300; opacity: 0;
+      pointer-events: none; transition: opacity .15s;
+      background: linear-gradient(90deg, transparent, var(--primary), transparent) no-repeat;
+      background-size: 40% 100%; animation: netbar 1s linear infinite;
+    }
+    #netbar.on { opacity: 1; }
+    @keyframes netbar { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+    @media (prefers-reduced-motion: reduce) { #netbar { animation: none; background-size: 100% 100%; } }
+
+    #bottomNav, .more-overlay { display: none; }
+    .more-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 120; align-items: flex-end; }
+    .more-overlay.open { display: flex; }
+    .more-sheet {
+      width: 100%; background: #fff; border-radius: 16px 16px 0 0;
+      padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); animation: sheetUp .18s ease-out;
+    }
+    .more-user { font-size: 12.5px; color: var(--muted); padding: 8px 10px 10px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+    .sheet-item {
+      display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+      border: none; background: none; border-radius: 10px; padding: 12px 10px; font-size: 15px; min-height: 48px;
+    }
+    .sheet-item:active { background: #f1f3f5; }
+    .sheet-item.danger { color: var(--expense); }
+    @keyframes sheetUp { from { transform: translateY(24px); opacity: .6; } to { transform: none; opacity: 1; } }
+
+    @media (max-width: 768px) {
+      #sidebar { display: none; }
+      #main { padding: calc(14px + env(safe-area-inset-top)) 14px calc(84px + env(safe-area-inset-bottom)); width: 100%; min-width: 0; }
+      .topbar { margin-bottom: 14px; }
+      .topbar h2 { font-size: 19px; }
+      .period-select { width: 100%; }
+      .period-select select { flex: 1; }
+
+      /* ukuran sentuh & anti-zoom iOS/Chrome saat mengetik */
+      select, input, textarea { font-size: 16px; min-height: 44px; }
+      button { min-height: 44px; }
+      .btn-sm { min-height: 36px; padding: 6px 12px; font-size: 13px; }
+      .chip { padding: 4px 6px 4px 12px; }
+      .chip button { min-height: 32px; min-width: 32px; font-size: 16px; }
+      .checkbox { width: 28px; height: 28px; font-size: 16px; flex-shrink: 0; }
+      .checklist-item { flex-wrap: wrap; gap: 8px; }
+      .card { padding: 14px; }
+
+      .card > div[style*="space-between"] { flex-wrap: wrap; gap: 10px; }
+      [style*="justify-content:flex-end"] { flex-wrap: wrap; }
+      [style*="justify-content:flex-end"] > button { flex: 1; }
+
+      /* bottom navigation */
+      #app.visible ~ #bottomNav {
+        display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 90;
+        background: #1f2937; border-top: 1px solid #374151; padding-bottom: env(safe-area-inset-bottom);
+      }
+      .bn-item {
+        flex: 1; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 2px; padding: 6px 2px; border: none; border-radius: 0; background: none; color: #9ca3af; font-size: 11px;
+      }
+      .bn-item .ic { font-size: 20px; line-height: 1; }
+      .bn-item.active { background: var(--primary); color: #fff; font-weight: 600; }
+
+      /* modal menjadi bottom sheet */
+      .modal-overlay { align-items: flex-end; }
+      .modal {
+        width: 100%; max-width: 100%; max-height: 92vh; max-height: 92dvh; border-radius: 16px 16px 0 0;
+        padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); animation: sheetUp .18s ease-out;
+      }
+      .modal-actions button { flex: 1; }
+
+      .toast { left: 16px; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); text-align: center; }
+
+      /* tabel -> kartu per baris (kelas rtable ditambah otomatis oleh JS) */
+      table.rtable, table.rtable tbody, table.rtable tfoot { display: block; }
+      table.rtable thead { display: none; }
+      table.rtable tr { display: block; border: 1px solid var(--border); border-radius: 10px; padding: 6px 12px; margin-top: 10px; background: #fff; }
+      table.rtable tfoot tr { font-weight: 700; }
+      table.rtable tr:hover td { background: transparent; }
+      table.rtable td { display: flex; justify-content: space-between; align-items: center; gap: 14px; border: none; padding: 6px 0; text-align: right; }
+      table.rtable td::before { content: attr(data-label); color: var(--muted); font-size: 12px; font-weight: 600; text-align: left; flex-shrink: 0; }
+      table.rtable td[data-label=""] { justify-content: flex-end; }
+      table.rtable td[data-label=""]::before { display: none; }
+      table.rtable td.row-actions { flex-wrap: wrap; padding-top: 10px; margin-top: 4px; border-top: 1px dashed var(--border); }
+      table.rtable td[colspan] { display: block; text-align: center; }
+    }
+    @media (max-width: 480px) {
+      .stat-value { font-size: 17px; word-break: break-word; }
+      .grid { gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-box" id="loginBox">
+    <h1>💰 Catatan Keuangan Pribadi</h1>
+    <p class="sub">Silakan login untuk melanjutkan</p>
+    <div class="form-row"><label>Username</label><input type="text" id="loginUsername" placeholder="username" onkeydown="if(event.key==='Enter')document.getElementById('loginPassword').focus()"></div>
+    <div class="form-row"><label>Password</label><input type="password" id="loginPassword" placeholder="password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="btn-primary" id="loginBtn" style="width:100%" onclick="doLogin()">Masuk</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div id="sidebar">
+    <div>
+      <h1>💰 Catatan Keuangan<span>Personal Finance Tracker</span></h1>
+      <div class="nav-item active" data-page="dashboard">📊 <span class="label">Dashboard</span></div>
+      <div class="nav-item" data-page="transaksi">📝 <span class="label">Transaksi</span></div>
+      <div class="nav-item" data-page="anggaran">🎯 <span class="label">Anggaran</span></div>
+      <div class="nav-item" data-page="tagihan">📅 <span class="label">Tagihan & Cicilan</span></div>
+      <div class="nav-item" data-page="tabungan">🏦 <span class="label">Tabungan & Investasi</span></div>
+      <div class="nav-item" data-page="rencana">📌 <span class="label">Rencana Tahunan</span></div>
+      <div class="nav-item" data-page="kategori">⚙️ <span class="label">Kategori</span></div>
+      <div class="nav-item" data-page="pengguna" id="navPengguna" style="display:none;">👤 <span class="label">Kelola Pengguna</span></div>
+      <div class="nav-item" id="openDbBtn">🔗 <span class="label">Buka Database</span></div>
+    </div>
+    <div id="sidebarUser">
+      <div class="uname" id="sbUserName"></div>
+      <div class="urole" id="sbUserRole"></div>
+      <button class="btn-secondary btn-sm" onclick="openChangePasswordForm()">Ganti Password</button>
+      <button class="btn-danger btn-sm" onclick="doLogout()">Keluar</button>
+    </div>
+  </div>
+
+  <div id="main">
+    <div class="topbar">
+      <h2 id="pageTitle">Dashboard</h2>
+      <div class="period-select" id="periodSelect">
+        <select id="selMonth"></select>
+        <select id="selYear"></select>
+      </div>
+    </div>
+    <div id="content"><div class="loading">Memuat data...</div></div>
+  </div>
+</div>
+
+<div id="netbar"></div>
+
+<nav id="bottomNav" aria-label="Menu utama">
+  <button class="bn-item active" data-page="dashboard"><span class="ic">📊</span>Dashboard</button>
+  <button class="bn-item" data-page="transaksi"><span class="ic">📝</span>Transaksi</button>
+  <button class="bn-item" data-page="anggaran"><span class="ic">🎯</span>Anggaran</button>
+  <button class="bn-item" data-page="tagihan"><span class="ic">📅</span>Tagihan</button>
+  <button class="bn-item" id="bnMore" onclick="toggleMore()"><span class="ic">☰</span>Lainnya</button>
+</nav>
+
+<div class="more-overlay" id="moreOverlay" onclick="if(event.target===this)closeMore()">
+  <div class="more-sheet">
+    <div class="more-user" id="sheetUser"></div>
+    <button class="sheet-item" data-page="tabungan">🏦 Tabungan &amp; Investasi</button>
+    <button class="sheet-item" data-page="rencana">📌 Rencana Tahunan</button>
+    <button class="sheet-item" data-page="kategori">⚙️ Kategori</button>
+    <button class="sheet-item" data-page="pengguna" id="sheetPengguna" style="display:none;">👤 Kelola Pengguna</button>
+    <button class="sheet-item" id="openDbBtn2">🔗 Buka Database</button>
+    <button class="sheet-item" id="installItem" style="display:none;" onclick="installApp()">📲 Pasang aplikasi di layar utama</button>
+    <button class="sheet-item" onclick="closeMore(); openChangePasswordForm()">🔑 Ganti Password</button>
+    <button class="sheet-item danger" onclick="closeMore(); doLogout()">🚪 Keluar</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalBody"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================== STATE ============================== */
+const state = {
+  page: 'dashboard',
+  month: new Date().getMonth() + 1,
+  year: new Date().getFullYear(),
+  monthNames: [],
+  kategori: [],
+  editId: null,
+  token: null,
+  username: null,
+  nama: null,
+  role: null
+};
+const SESSION_STORAGE_KEY = 'financeAppSession';
+
+const fmtRp = (n) => 'Rp ' + (Number(n) || 0).toLocaleString('id-ID');
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ============================== API (fetch ke Google Apps Script) ============================== */
+let pendingRequests = 0;
+function netbar_(delta) {
+  pendingRequests = Math.max(0, pendingRequests + delta);
+  document.getElementById('netbar').classList.toggle('on', pendingRequests > 0);
+}
+
+async function rpc(fn, args) {
+  if (typeof API_URL === 'undefined' || !API_URL || API_URL.indexOf('PASTE') > -1) {
+    throw new Error('API_URL belum diisi di config.js');
+  }
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 45000);
+  netbar_(1);
+  try {
+    let res;
+    try {
+      // text/plain agar browser tidak melakukan preflight CORS (tidak didukung Apps Script)
+      res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ fn: fn, args: args || [] }),
+        signal: ctrl.signal
+      });
+    } catch (e) {
+      throw new Error(e.name === 'AbortError'
+        ? 'Server terlalu lama merespons. Coba lagi.'
+        : 'Tidak bisa terhubung ke server. Periksa koneksi internet.');
+    }
+    const text = await res.text();
+    let json;
+    try { json = JSON.parse(text); } catch (e) {
+      throw new Error('Respons server tidak valid. Pastikan deployment Apps Script: "Who has access" = Anyone.');
+    }
+    if (!json.ok) throw new Error(json.error || 'Terjadi kesalahan di server.');
+    return json.data;
+  } finally {
+    clearTimeout(timer);
+    netbar_(-1);
+  }
+}
+
+// Sama seperti call() lama: token otomatis jadi argumen pertama
+function call(fnName, args) {
+  return rpc(fnName, [state.token].concat(args || [])).catch((err) => {
+    showToast('Error: ' + err.message);
+    if (err && err.message && err.message.indexOf('Sesi tidak valid') > -1) doLogout(true);
+    throw err;
+  });
+}
+
+/* ============================== AUTH ============================== */
+function saveSessionLocal() {
+  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
+    token: state.token, username: state.username, nama: state.nama, role: state.role
+  }));
+}
+function clearSessionLocal() {
+  localStorage.removeItem(SESSION_STORAGE_KEY);
+}
+function applySessionToUI() {
+  document.getElementById('sbUserName').textContent = state.nama || state.username;
+  document.getElementById('sbUserRole').textContent = state.role;
+  document.getElementById('navPengguna').style.display = state.role === 'Owner' ? 'flex' : 'none';
+  document.getElementById('sheetPengguna').style.display = state.role === 'Owner' ? 'flex' : 'none';
+  document.getElementById('sheetUser').textContent = (state.nama || state.username) + ' (' + state.role + ')';
+}
+
+function doLogin() {
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+  errEl.textContent = '';
+  if (!username || !password) { errEl.textContent = 'Isi username dan password.'; return; }
+
+  btn.disabled = true; btn.textContent = 'Memproses...';
+  rpc('login', [username, password])
+    .then((res) => {
+      state.token = res.token; state.username = res.username; state.nama = res.nama; state.role = res.role;
+      saveSessionLocal();
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('app').classList.add('visible');
+      applySessionToUI();
+      goPage('dashboard');
+      startApp();
+    })
+    .catch((err) => { errEl.textContent = err.message; })
+    .finally(() => { btn.disabled = false; btn.textContent = 'Masuk'; });
+}
+
+function doLogout(silent) {
+  const token = state.token;
+  clearSessionLocal();
+  state.token = null; state.username = null; state.nama = null; state.role = null;
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginBox').style.visibility = 'visible';
+  document.getElementById('loginUsername').value = '';
+  document.getElementById('loginPassword').value = '';
+  closeModal(); closeMore();
+  if (token) rpc('logout', [token]).catch(() => {}); // tidak perlu ditunggu
+  if (!silent) showToast('Berhasil keluar');
+}
+
+function openChangePasswordForm() {
+  openModal(`
+    <h3>Ganti Password</h3>
+    <div class="form-row"><label>Password Lama</label><input type="password" id="fOldPw"></div>
+    <div class="form-row"><label>Password Baru (min. 6 karakter)</label><input type="password" id="fNewPw"></div>
+    <div class="form-row"><label>Ulangi Password Baru</label><input type="password" id="fNewPw2"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn-primary" onclick="saveChangePassword()">Simpan</button>
+    </div>
+  `);
+}
+function saveChangePassword() {
+  const oldPw = document.getElementById('fOldPw').value;
+  const newPw = document.getElementById('fNewPw').value;
+  const newPw2 = document.getElementById('fNewPw2').value;
+  if (newPw !== newPw2) { showToast('Konfirmasi password baru tidak cocok'); return; }
+  call('changeOwnPassword', [oldPw, newPw]).then(() => { closeModal(); showToast('Password berhasil diganti'); });
+}
+
+/* ============================== INIT ============================== */
+function init() {
+  document.querySelectorAll('[data-page]').forEach(el => {
+    el.addEventListener('click', () => goPage(el.dataset.page));
+  });
+
+  document.getElementById('modalOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'modalOverlay') closeModal();
+  });
+
+  document.getElementById('openDbBtn').addEventListener('click', openDb);
+  document.getElementById('openDbBtn2').addEventListener('click', () => { closeMore(); openDb(); });
+
+  const saved = localStorage.getItem(SESSION_STORAGE_KEY);
+  if (!saved) { document.getElementById('loginScreen').classList.remove('hidden'); return; }
+
+  let parsed;
+  try { parsed = JSON.parse(saved); } catch (e) { parsed = null; }
+  if (!parsed || !parsed.token) { document.getElementById('loginScreen').classList.remove('hidden'); return; }
+
+  // Sembunyikan form login selama sesi tersimpan dicek, supaya tidak berkedip
+  document.getElementById('loginBox').style.visibility = 'hidden';
+  rpc('validateSession', [parsed.token])
+    .then((res) => {
+      state.token = parsed.token; state.username = res.username; state.nama = res.nama; state.role = res.role;
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('app').classList.add('visible');
+      applySessionToUI();
+      startApp();
+    })
+    .catch((err) => {
+      if (err.message.indexOf('Sesi tidak valid') > -1) clearSessionLocal();
+      else showToast(err.message);
+      document.getElementById('loginBox').style.visibility = 'visible';
+      document.getElementById('loginScreen').classList.remove('hidden');
+    });
+}
+
+function startApp() {
+  call('getMonthNames').then(names => {
+    state.monthNames = names;
+    const selMonth = document.getElementById('selMonth');
+    selMonth.innerHTML = '';
+    names.forEach((n, i) => {
+      const opt = document.createElement('option');
+      opt.value = i + 1; opt.textContent = n;
+      if (i + 1 === state.month) opt.selected = true;
+      selMonth.appendChild(opt);
+    });
+    const selYear = document.getElementById('selYear');
+    selYear.innerHTML = '';
+    const curYear = new Date().getFullYear();
+    for (let y = curYear - 3; y <= curYear + 2; y++) {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = y;
+      if (y === state.year) opt.selected = true;
+      selYear.appendChild(opt);
+    }
+    selMonth.addEventListener('change', () => { state.month = Number(selMonth.value); renderPage(); });
+    selYear.addEventListener('change', () => { state.year = Number(selYear.value); renderPage(); });
+
+    call('getKategori').then(kat => { state.kategori = kat; });
+    renderPage();
+  });
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.getElementById('modalBody').innerHTML = '';
+  state.editId = null;
+}
+function openModal(html) {
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+const PAGE_TITLES = {
+  dashboard: 'Dashboard', transaksi: 'Transaksi', anggaran: 'Anggaran Bulanan',
+  tagihan: 'Tagihan & Cicilan', tabungan: 'Tabungan & Investasi',
+  rencana: 'Rencana Pengeluaran Tahunan', kategori: 'Kelola Kategori', pengguna: 'Kelola Pengguna'
+};
+const PAGE_NEEDS_PERIOD = { dashboard: true, transaksi: true, anggaran: true, tagihan: true, tabungan: false, rencana: false, kategori: false, pengguna: false };
+
+function renderPage() {
+  document.getElementById('pageTitle').textContent = PAGE_TITLES[state.page];
+  document.getElementById('periodSelect').style.display = PAGE_NEEDS_PERIOD[state.page] ? 'flex' : 'none';
+  document.getElementById('content').innerHTML = '<div class="loading">Memuat data...</div>';
+
+  switch (state.page) {
+    case 'dashboard': return renderDashboard();
+    case 'transaksi': return renderTransaksi();
+    case 'anggaran': return renderAnggaran();
+    case 'tagihan': return renderTagihan();
+    case 'tabungan': return renderTabungan();
+    case 'rencana': return renderRencana();
+    case 'kategori': return renderKategori();
+    case 'pengguna': return renderPengguna();
+  }
+}
+
+/* ============================== DASHBOARD ============================== */
+function renderDashboard() {
+  call('getDashboardData', [state.month, state.year]).then(d => {
+    const balanceClass = d.sisa >= 0 ? 'balance-pos' : 'balance-neg';
+    let html = `
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-bottom:14px;">
+        <button class="btn-secondary" onclick="downloadDashboardJPG()">🖼️ Download JPG</button>
+        <button class="btn-primary" onclick="salinLaporanWA()">📋 Salin Laporan WA</button>
+      </div>
+      <div id="dashboardCapture" style="background:var(--bg); padding:2px;">
+        <div class="section-title" style="font-size:16px; margin-bottom:12px;">Dashboard — ${state.monthNames[state.month-1]} ${state.year}</div>
+        <div class="grid grid-4">
+          <div class="card"><div class="stat-label">Total Pemasukan</div><div class="stat-value income">${fmtRp(d.totalIncome)}</div></div>
+          <div class="card"><div class="stat-label">Total Pengeluaran</div><div class="stat-value expense">${fmtRp(d.totalExpense)}</div></div>
+          <div class="card"><div class="stat-label">Sisa / Deviasi</div><div class="stat-value ${balanceClass}">${fmtRp(d.sisa)}</div></div>
+          <div class="card"><div class="stat-label">Tabungan Bulan Ini</div><div class="stat-value income">${fmtRp(d.tabunganBulanIni)}</div></div>
+        </div>
+        <div class="grid grid-2" style="margin-top:16px;">
+          <div class="card">
+            <div class="section-title">Pengeluaran per Kategori</div>
+            ${Object.keys(d.expenseByCategory).length ? '<canvas id="chartCategory" height="200"></canvas>' : '<div class="empty-state">Belum ada transaksi pengeluaran bulan ini</div>'}
+          </div>
+          <div class="card">
+            <div class="section-title">Pengeluaran per Periode (10 harian)</div>
+            ${d.totalExpense ? '<canvas id="chartPeriode" height="200"></canvas>' : '<div class="empty-state">Belum ada data</div>'}
+            <div class="section-title" style="margin-top:18px;">Ringkasan Tagihan</div>
+            <div style="font-size:13.5px; line-height:1.9;">
+              Total tagihan bulan ini: <b>${fmtRp(d.tagihanTotal)}</b><br>
+              Sudah dibayar: <b style="color:var(--income)">${fmtRp(d.tagihanLunas)}</b><br>
+              Belum dibayar: <b style="color:var(--expense)">${fmtRp(d.tagihanBelumLunas)}</b>
+            </div>
+          </div>
+        </div>`;
+
+    if (d.budgetComparison.length) {
+      html += `<div class="card" style="margin-top:16px;">
+        <div class="section-title">Realisasi vs Anggaran</div>`;
+      d.budgetComparison.forEach(b => {
+        const pct = b.anggaran > 0 ? Math.min(100, Math.round((b.realisasi / b.anggaran) * 100)) : 0;
+        const over = b.realisasi > b.anggaran;
+        html += `<div style="margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; font-size:13px;">
+            <span>${b.kategori}</span>
+            <span>${fmtRp(b.realisasi)} / ${fmtRp(b.anggaran)}</span>
+          </div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill ${over ? 'over' : ''}" style="width:${pct}%"></div></div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+
+    document.getElementById('content').innerHTML = html;
+
+    if (Object.keys(d.expenseByCategory).length) {
+      new Chart(document.getElementById('chartCategory'), {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(d.expenseByCategory),
+          datasets: [{ data: Object.values(d.expenseByCategory), backgroundColor: chartColors(Object.keys(d.expenseByCategory).length) }]
+        },
+        options: { plugins: { legend: { position: window.innerWidth < 640 ? 'bottom' : 'right', labels: { boxWidth: 12, font: { size: 11 } } } } }
+      });
+    }
+    if (d.totalExpense) {
+      new Chart(document.getElementById('chartPeriode'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(d.expenseByPeriode),
+          datasets: [{ data: Object.values(d.expenseByPeriode), backgroundColor: '#2f7d5f' }]
+        },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+  });
+}
+
+function downloadDashboardJPG() {
+  const el = document.getElementById('dashboardCapture');
+  if (!el || typeof html2canvas === 'undefined') {
+    showToast('Gagal memuat modul gambar, coba lagi.');
+    return;
+  }
+  showToast('Menyiapkan gambar...');
+  // Beri jeda sedikit supaya chart Chart.js selesai animasi render sebelum di-capture
+  setTimeout(() => {
+    html2canvas(el, { backgroundColor: '#f4f6f9', scale: 2, useCORS: true }).then(canvas => {
+      const link = document.createElement('a');
+      const namaBulan = state.monthNames[state.month - 1] || state.month;
+      link.download = `Dashboard_${namaBulan}_${state.year}.jpg`;
+      link.href = canvas.toDataURL('image/jpeg', 0.95);
+      link.click();
+      showToast('Dashboard berhasil diunduh sebagai JPG');
+    }).catch(err => {
+      showToast('Gagal membuat gambar: ' + err.message);
+    });
+  }, 300);
+}
+
+/* ============================== SALIN LAPORAN WA ============================== */
+function todayDateStr_() {
+  const t = new Date();
+  return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+}
+
+function buildLaporanWAText_(d) {
+  const [y, m, dd] = d.tanggal.split('-');
+  const tglStr = dd + '/' + m + '/' + y;
+  const fmtNum = (n) => (Number(n) || 0).toLocaleString('id-ID');
+
+  const katKeys = Object.keys(d.pengeluaranHariIni);
+  const kategoriLines = katKeys.length
+    ? katKeys.map(k => `● ${k} = ${fmtNum(d.pengeluaranHariIni[k])}`).join('\n')
+    : '● Belum ada pengeluaran hari ini';
+
+  return `💰*ELFINANCIAL TRACKER*
+🗓️*Tanggal: ${tglStr}*
+
+🔰 Saldo Awal : ${fmtNum(d.saldoAwal)}
+
+🟦 *Pengeluaran Harian Per Kategori :*
+
+${kategoriLines}
+
+
+🔰 Saldo Akhir : ${fmtNum(d.saldoAkhir)}
+💰 Tabungan / Investasi : ${fmtNum(d.totalTabungan)}
+
+*Total Pemasukan Bulan ini : ${fmtNum(d.totalIncomeBulanIni)}*
+*Total Pengeluaran Bulan ini : ${fmtNum(d.totalExpenseBulanIni)}*`;
+}
+
+function salinLaporanWA() {
+  call('getLaporanHarianWA', [todayDateStr_()]).then(d => {
+    const text = buildLaporanWAText_(d);
+    copyTextToClipboard_(text);
+  });
+}
+
+function copyTextToClipboard_(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text)
+      .then(() => showToast('Laporan disalin! Tempel ke WhatsApp.'))
+      .catch(() => fallbackCopyText_(text));
+  } else {
+    fallbackCopyText_(text);
+  }
+}
+
+function fallbackCopyText_(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast('Laporan disalin! Tempel ke WhatsApp.');
+  } catch (e) {
+    showToast('Gagal menyalin otomatis, salin manual dari kotak yang muncul');
+    openModal(`
+      <h3>Salin Laporan Manual</h3>
+      <textarea style="width:100%; height:220px; font-family:monospace; font-size:12.5px;">${text}</textarea>
+      <div class="modal-actions"><button class="btn-secondary" onclick="closeModal()">Tutup</button></div>
+    `);
+  }
+  document.body.removeChild(ta);
+}
+
+function chartColors(n) {
+  const palette = ['#2f7d5f', '#c0453a', '#e2a13c', '#3b6fb6', '#8a5fbf', '#c76ba3', '#4bab9e', '#d98b3f', '#5a8f3c', '#a35b8f'];
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(palette[i % palette.length]);
+  return out;
+}
+
+/* ============================== TRANSAKSI ============================== */
+function renderTransaksi() {
+  call('getTransaksi', [state.month, state.year]).then(list => {
+    let rows = list.map(t => `
+      <tr>
+        <td>${t.Tanggal}</td>
+        <td><span class="tag ${t.Tipe}">${t.Tipe}</span></td>
+        <td>${t.Kategori}${t.SubKategori ? ' / ' + t.SubKategori : ''}</td>
+        <td>${t.Deskripsi || '-'}</td>
+        <td class="num" style="color:${t.Tipe === 'Pemasukan' ? 'var(--income)' : 'var(--expense)'}">${fmtRp(t.Jumlah)}</td>
+        <td class="row-actions">
+          <button class="btn-secondary btn-sm" onclick="editTransaksi('${t.ID}')">Edit</button>
+          <button class="btn-danger btn-sm" onclick="removeTransaksi('${t.ID}')">Hapus</button>
+        </td>
+      </tr>`).join('');
+
+    document.getElementById('content').innerHTML = `
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="section-title" style="margin:0;">Daftar Transaksi (${state.monthNames[state.month-1]} ${state.year})</div>
+          <button class="btn-primary" onclick="openTransaksiForm()">+ Tambah Transaksi</button>
+        </div>
+        <table>
+          <thead><tr><th>Tanggal</th><th>Tipe</th><th>Kategori</th><th>Deskripsi</th><th style="text-align:right">Jumlah</th><th></th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="6" class="empty-state">Belum ada transaksi</td></tr>'}</tbody>
+        </table>
+      </div>`;
+    window._transaksiCache = list;
+  });
+}
+
+function kategoriOptions(tipe, selected) {
+  return state.kategori.filter(k => k.Tipe === tipe)
+    .map(k => `<option value="${k.Nama}" ${k.Nama === selected ? 'selected' : ''}>${k.Nama}</option>`).join('');
+}
+
+function openTransaksiForm(id) {
+  const existing = id ? window._transaksiCache.find(t => t.ID === id) : null;
+  state.editId = id || null;
+  const tipe = existing ? existing.Tipe : 'Pengeluaran';
+  openModal(`
+    <h3>${existing ? 'Edit' : 'Tambah'} Transaksi</h3>
+    <div class="form-row"><label>Tanggal</label><input type="date" id="fTanggal" value="${existing ? existing.Tanggal : new Date().toISOString().slice(0,10)}"></div>
+    <div class="form-row"><label>Tipe</label>
+      <select id="fTipe" onchange="refreshKategoriSelect()">
+        <option value="Pengeluaran" ${tipe==='Pengeluaran'?'selected':''}>Pengeluaran</option>
+        <option value="Pemasukan" ${tipe==='Pemasukan'?'selected':''}>Pemasukan</option>
+      </select>
+    </div>
+    <div class="form-row"><label>Kategori</label><select id="fKategori">${kategoriOptions(tipe, existing ? existing.Kategori : null)}</select></div>
+    <div class="form-row"><label>Sub Kategori (opsional)</label><input type="text" id="fSubKategori" value="${existing ? (existing.SubKategori||'') : ''}" placeholder="mis. gofood, bensin motor"></div>
+    <div class="form-row"><label>Deskripsi (opsional)</label><input type="text" id="fDeskripsi" value="${existing ? (existing.Deskripsi||'') : ''}"></div>
+    <div class="form-row"><label>Jumlah (Rp)</label><input type="number" id="fJumlah" value="${existing ? existing.Jumlah : ''}"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn-primary" onclick="saveTransaksi()">Simpan</button>
+    </div>
+  `);
+}
+function refreshKategoriSelect() {
+  const tipe = document.getElementById('fTipe').value;
+  document.getElementById('fKategori').innerHTML = kategoriOptions(tipe, null);
+}
+function saveTransaksi() {
+  const data = {
+    tanggal: document.getElementById('fTanggal').value,
+    tipe: document.getElementById('fTipe').value,
+    kategori: document.getElementById('fKategori').value,
+    subKategori: document.getElementById('fSubKategori').value,
+    deskripsi: document.getElementById('fDeskripsi').value,
+    jumlah: document.getElementById('fJumlah').value
+  };
+  if (!data.tanggal || !data.kategori || !data.jumlah) { showToast('Lengkapi tanggal, kategori, dan jumlah'); return; }
+  const fn = state.editId ? 'updateTransaksi' : 'addTransaksi';
+  const args = state.editId ? [state.editId, data] : [data];
+  call(fn, args).then(() => { closeModal(); showToast('Transaksi tersimpan'); renderPage(); });
+}
+function editTransaksi(id) { openTransaksiForm(id); }
+function removeTransaksi(id) {
+  if (!confirm('Hapus transaksi ini?')) return;
+  call('deleteTransaksi', [id]).then(() => { showToast('Transaksi dihapus'); renderPage(); });
+}
+
+/* ============================== ANGGARAN ============================== */
+function renderAnggaran() {
+  Promise.all([call('getAnggaran', [state.month, state.year]), call('getDashboardData', [state.month, state.year])]).then(([anggaran, dash]) => {
+    const expenseKategori = state.kategori.filter(k => k.Tipe === 'Pengeluaran');
+    let totalAnggaran = 0;
+    let totalRealisasi = 0;
+
+    let rows = expenseKategori.map(k => {
+      const existing = anggaran.find(a => a.Kategori === k.Nama);
+      const realisasi = dash.expenseByCategory[k.Nama] || 0;
+      const budget = existing ? existing.Jumlah : 0;
+      const pct = budget > 0 ? Math.round((realisasi / budget) * 100) : 0;
+      totalAnggaran += budget;
+      totalRealisasi += realisasi;
+      return `<tr>
+        <td>${k.Nama}</td>
+        <td><input type="number" style="width:120px" value="${budget}" onchange="saveAnggaranInline('${k.Nama}', this.value)"></td>
+        <td class="num">${fmtRp(realisasi)}</td>
+        <td class="num" style="color:${realisasi > budget && budget > 0 ? 'var(--expense)' : 'var(--muted)'}">${budget > 0 ? pct + '%' : '-'}</td>
+      </tr>`;
+    }).join('');
+
+    const totalSisa = totalAnggaran - totalRealisasi;
+    const totalPct = totalAnggaran > 0 ? Math.min(100, Math.round((totalRealisasi / totalAnggaran) * 100)) : 0;
+    const totalOver = totalRealisasi > totalAnggaran && totalAnggaran > 0;
+
+    document.getElementById('content').innerHTML = `
+      <div style="display:flex; justify-content:flex-end; margin-bottom:14px;">
+        <button class="btn-primary" onclick="downloadAnggaranJPG()">🖼️ Download JPG</button>
+      </div>
+      <div id="anggaranCapture" style="background:var(--bg); padding:2px;">
+        <div class="grid grid-4" style="margin-bottom:16px;">
+          <div class="card"><div class="stat-label">Total Anggaran</div><div class="stat-value">${fmtRp(totalAnggaran)}</div></div>
+          <div class="card"><div class="stat-label">Total Realisasi</div><div class="stat-value expense">${fmtRp(totalRealisasi)}</div></div>
+          <div class="card"><div class="stat-label">Sisa Anggaran</div><div class="stat-value ${totalSisa >= 0 ? 'balance-pos' : 'balance-neg'}">${fmtRp(totalSisa)}</div></div>
+          <div class="card">
+            <div class="stat-label">Terpakai</div>
+            <div class="stat-value" style="color:${totalOver ? 'var(--expense)' : 'var(--text)'}">${totalAnggaran > 0 ? totalPct + '%' : '-'}</div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill ${totalOver ? 'over' : ''}" style="width:${totalPct}%"></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-title">Anggaran Pengeluaran — ${state.monthNames[state.month-1]} ${state.year}</div>
+          <p style="color:var(--muted); font-size:13px;">Atur target anggaran per kategori, lalu bandingkan dengan realisasi transaksi bulan ini.</p>
+          <table>
+            <thead><tr><th>Kategori</th><th>Anggaran (Rp)</th><th style="text-align:right">Realisasi</th><th style="text-align:right">%</th></tr></thead>
+            <tbody>${rows}</tbody>
+            <tfoot>
+              <tr style="font-weight:700; border-top:2px solid var(--border);">
+                <td>Total</td>
+                <td>${fmtRp(totalAnggaran)}</td>
+                <td class="num">${fmtRp(totalRealisasi)}</td>
+                <td class="num" style="color:${totalOver ? 'var(--expense)' : 'var(--muted)'}">${totalAnggaran > 0 ? totalPct + '%' : '-'}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>`;
+  });
+}
+function saveAnggaranInline(kategori, jumlah) {
+  call('setAnggaran', [state.month, state.year, kategori, jumlah]).then(() => { showToast('Anggaran diperbarui'); renderAnggaran(); });
+}
+
+function downloadAnggaranJPG() {
+  const el = document.getElementById('anggaranCapture');
+  if (!el || typeof html2canvas === 'undefined') {
+    showToast('Gagal memuat modul gambar, coba lagi.');
+    return;
+  }
+  // Sembunyikan input angka & tampilkan sebagai teks biasa saat capture, biar rapi di gambar
+  const inputs = el.querySelectorAll('input[type="number"]');
+  const placeholders = [];
+  inputs.forEach(inp => {
+    const span = document.createElement('span');
+    span.textContent = fmtRp(inp.value);
+    span.style.fontWeight = '600';
+    inp.style.display = 'none';
+    inp.insertAdjacentElement('afterend', span);
+    placeholders.push({ input: inp, span: span });
+  });
+
+  showToast('Menyiapkan gambar...');
+  html2canvas(el, { backgroundColor: '#f4f6f9', scale: 2, useCORS: true }).then(canvas => {
+    const link = document.createElement('a');
+    const namaBulan = state.monthNames[state.month - 1] || state.month;
+    link.download = `Anggaran_${namaBulan}_${state.year}.jpg`;
+    link.href = canvas.toDataURL('image/jpeg', 0.95);
+    link.click();
+    showToast('Anggaran berhasil diunduh sebagai JPG');
+  }).catch(err => {
+    showToast('Gagal membuat gambar: ' + err.message);
+  }).finally(() => {
+    placeholders.forEach(p => { p.input.style.display = ''; p.span.remove(); });
+  });
+}
+
+/* ============================== TAGIHAN & CICILAN ============================== */
+function renderTagihan() {
+  Promise.all([call('getTagihan'), call('getTagihanStatus', [state.month, state.year])]).then(([list, status]) => {
+    window._tagihanCache = list;
+    const groups = {};
+    list.filter(t => t.Aktif !== false).forEach(t => {
+      if (!groups[t.Kelompok]) groups[t.Kelompok] = [];
+      groups[t.Kelompok].push(t);
+    });
+
+    let html = `<div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="section-title" style="margin:0;">Tagihan & Cicilan — ${state.monthNames[state.month-1]} ${state.year}</div>
+        <button class="btn-primary" onclick="openTagihanForm()">+ Tambah Tagihan</button>
+      </div>`;
+
+    if (!Object.keys(groups).length) {
+      html += `<div class="empty-state">Belum ada tagihan/cicilan terdaftar</div>`;
+    }
+
+    Object.keys(groups).forEach(g => {
+      html += `<div class="kategori-group"><div style="font-weight:600; margin:14px 0 6px 0; font-size:13.5px;">${g}</div>`;
+      groups[g].forEach(t => {
+        const s = status.find(x => x.TagihanID === t.ID);
+        const paid = s && s.Status;
+        html += `<div class="checklist-item ${paid ? 'paid' : ''}">
+          <div class="checklist-left">
+            <div class="checkbox ${paid ? 'checked' : ''}" onclick="toggleTagihan('${t.ID}')">${paid ? '✓' : ''}</div>
+            <div>
+              <div style="font-weight:600;">${t.Nama}</div>
+              <div style="font-size:12px; color:var(--muted);">Jatuh tempo tgl ${t.TanggalJatuhTempo}</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="font-weight:600;">${fmtRp(t.Jumlah)}</div>
+            <div class="row-actions">
+              <button class="btn-secondary btn-sm" onclick="editTagihan('${t.ID}')">Edit</button>
+              <button class="btn-danger btn-sm" onclick="removeTagihan('${t.ID}')">Hapus</button>
+            </div>
+          </div>
+        </div>`;
+      });
+      html += `</div>`;
+    });
+    html += `</div>`;
+    document.getElementById('content').innerHTML = html;
+  });
+}
+function toggleTagihan(id) {
+  call('toggleTagihanStatus', [id, state.month, state.year]).then(() => renderTagihan());
+}
+function openTagihanForm(id) {
+  const existing = id ? window._tagihanCache.find(t => t.ID === id) : null;
+  state.editId = id || null;
+  const kelompokOpts = ['Cicilan', 'Bills / Tagihan Bulanan', 'Sinking Fund / Dana Tak Terduga'];
+  openModal(`
+    <h3>${existing ? 'Edit' : 'Tambah'} Tagihan</h3>
+    <div class="form-row"><label>Nama</label><input type="text" id="fNama" value="${existing ? existing.Nama : ''}" placeholder="mis. KPR Rumah, PLN, Cicilan Mobil"></div>
+    <div class="form-row"><label>Kelompok</label><select id="fKelompok">${kelompokOpts.map(k => `<option ${existing && existing.Kelompok===k?'selected':''}>${k}</option>`).join('')}</select></div>
+    <div class="form-row"><label>Jumlah per bulan (Rp)</label><input type="number" id="fJumlah" value="${existing ? existing.Jumlah : ''}"></div>
+    <div class="form-row"><label>Tanggal jatuh tempo (1-31)</label><input type="number" min="1" max="31" id="fTgl" value="${existing ? existing.TanggalJatuhTempo : ''}"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn-primary" onclick="saveTagihan()">Simpan</button>
+    </div>
+  `);
+}
+function saveTagihan() {
+  const data = {
+    nama: document.getElementById('fNama').value,
+    kelompok: document.getElementById('fKelompok').value,
+    jumlah: document.getElementById('fJumlah').value,
+    tanggalJatuhTempo: document.getElementById('fTgl').value,
+    aktif: true
+  };
+  if (!data.nama || !data.jumlah) { showToast('Lengkapi nama dan jumlah'); return; }
+  const fn = state.editId ? 'updateTagihan' : 'addTagihan';
+  const args = state.editId ? [state.editId, data] : [data];
+  call(fn, args).then(() => { closeModal(); showToast('Tagihan tersimpan'); renderTagihan(); });
+}
+function editTagihan(id) { openTagihanForm(id); }
+function removeTagihan(id) {
+  if (!confirm('Hapus tagihan ini beserta riwayat pembayarannya?')) return;
+  call('deleteTagihan', [id]).then(() => { showToast('Tagihan dihapus'); renderTagihan(); });
+}
+
+/* ============================== TABUNGAN & INVESTASI ============================== */
+function renderTabungan() {
+  call('getTabungan').then(list => {
+    window._tabunganCache = list;
+    const total = list.reduce((s, t) => s + Number(t.Nominal || 0), 0);
+    const byPlatform = {};
+    list.forEach(t => { byPlatform[t.Platform] = (byPlatform[t.Platform] || 0) + Number(t.Nominal || 0); });
+
+    let rows = list.map(t => `
+      <tr>
+        <td>${t.Tanggal}</td>
+        <td>${t.Platform}</td>
+        <td>${t.JenisInvestasi}</td>
+        <td>${t.Keterangan || '-'}</td>
+        <td class="num">${fmtRp(t.Nominal)}</td>
+        <td><button class="btn-danger btn-sm" onclick="removeTabungan('${t.ID}')">Hapus</button></td>
+      </tr>`).join('');
+
+    document.getElementById('content').innerHTML = `
+      <div class="grid grid-2" style="margin-bottom:16px;">
+        <div class="card">
+          <div class="section-title">Rekap per Platform</div>
+          <div class="chip-list">${Object.keys(byPlatform).map(p => `<div class="chip">${p}: <b>${fmtRp(byPlatform[p])}</b></div>`).join('') || '<span class="empty-state">Belum ada data</span>'}</div>
+        </div>
+        <div class="card">
+          <div class="stat-label">Total Tabungan & Investasi</div>
+          <div class="stat-value income">${fmtRp(total)}</div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="section-title" style="margin:0;">Riwayat Tabungan & Investasi</div>
+          <button class="btn-primary" onclick="openTabunganForm()">+ Tambah</button>
+        </div>
+        <table>
+          <thead><tr><th>Tanggal</th><th>Platform</th><th>Jenis Investasi</th><th>Keterangan</th><th style="text-align:right">Nominal</th><th></th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="6" class="empty-state">Belum ada data</td></tr>'}</tbody>
+        </table>
+      </div>`;
+  });
+}
+function openTabunganForm() {
+  openModal(`
+    <h3>Tambah Tabungan / Investasi</h3>
+    <div class="form-row"><label>Tanggal</label><input type="date" id="fTanggal" value="${new Date().toISOString().slice(0,10)}"></div>
+    <div class="form-row"><label>Platform</label><input type="text" id="fPlatform" placeholder="mis. Bibit, Bareksa, Jago, UBS"></div>
+    <div class="form-row"><label>Jenis Investasi</label><input type="text" id="fJenis" placeholder="mis. Reksadana Pasar Uang, Emas, Kas"></div>
+    <div class="form-row"><label>Nominal (Rp)</label><input type="number" id="fNominal"></div>
+    <div class="form-row"><label>Keterangan (opsional)</label><input type="text" id="fKeterangan"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn-primary" onclick="saveTabungan()">Simpan</button>
+    </div>
+  `);
+}
+function saveTabungan() {
+  const data = {
+    tanggal: document.getElementById('fTanggal').value,
+    platform: document.getElementById('fPlatform').value,
+    jenisInvestasi: document.getElementById('fJenis').value,
+    nominal: document.getElementById('fNominal').value,
+    keterangan: document.getElementById('fKeterangan').value
+  };
+  if (!data.tanggal || !data.platform || !data.nominal) { showToast('Lengkapi tanggal, platform, dan nominal'); return; }
+  call('addTabungan', [data]).then(() => { closeModal(); showToast('Data tersimpan'); renderTabungan(); });
+}
+function removeTabungan(id) {
+  if (!confirm('Hapus data ini?')) return;
+  call('deleteTabungan', [id]).then(() => { showToast('Data dihapus'); renderTabungan(); });
+}
+
+/* ============================== RENCANA TAHUNAN ============================== */
+function renderRencana() {
+  call('getRencanaTahunan', [state.year]).then(list => {
+    window._rencanaCache = list;
+    const groups = {};
+    list.forEach(r => { if (!groups[r.Kelompok]) groups[r.Kelompok] = []; groups[r.Kelompok].push(r); });
+    const totalEstimasi = list.reduce((s, r) => s + Number(r.Estimasi || 0), 0);
+    const totalActual = list.reduce((s, r) => s + Number(r.Actual || 0), 0);
+
+    let html = `
+      <div class="grid grid-2b" style="margin-bottom:16px;">
+        <div class="card"><div class="stat-label">Total Estimasi ${state.year}</div><div class="stat-value">${fmtRp(totalEstimasi)}</div></div>
+        <div class="card"><div class="stat-label">Total Actual ${state.year}</div><div class="stat-value">${fmtRp(totalActual)}</div></div>
+      </div>
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="section-title" style="margin:0;">Rencana Pengeluaran Besar ${state.year}</div>
+          <button class="btn-primary" onclick="openRencanaForm()">+ Tambah Rencana</button>
+        </div>`;
+
+    if (!list.length) html += `<div class="empty-state">Belum ada rencana pengeluaran tahunan</div>`;
+
+    Object.keys(groups).forEach(g => {
+      html += `<div class="kategori-group"><div style="font-weight:600; margin:14px 0 6px 0; font-size:13.5px;">${g}</div>
+        <table><thead><tr><th>Nama</th><th>Target</th><th style="text-align:right">Estimasi</th><th style="text-align:right">Actual</th><th>Status</th><th></th></tr></thead><tbody>`;
+      groups[g].forEach(r => {
+        html += `<tr>
+          <td>${r.Nama}</td>
+          <td>${r.TanggalTarget || '-'}</td>
+          <td class="num">${fmtRp(r.Estimasi)}</td>
+          <td class="num">${fmtRp(r.Actual)}</td>
+          <td><div class="checkbox ${r.Selesai ? 'checked' : ''}" onclick="toggleRencana('${r.ID}')">${r.Selesai ? '✓' : ''}</div></td>
+          <td class="row-actions">
+            <button class="btn-secondary btn-sm" onclick="editRencana('${r.ID}')">Edit</button>
+            <button class="btn-danger btn-sm" onclick="removeRencana('${r.ID}')">Hapus</button>
+          </td>
+        </tr>`;
+      });
+      html += `</tbody></table></div>`;
+    });
+    html += `</div>`;
+    document.getElementById('content').innerHTML = html;
+  });
+}
+function toggleRencana(id) {
+  const r = window._rencanaCache.find(x => x.ID === id);
+  call('updateRencanaTahunan', [id, {
+    nama: r.Nama, kelompok: r.Kelompok, tanggalTarget: r.TanggalTarget,
+    estimasi: r.Estimasi, actual: r.Actual, selesai: !r.Selesai
+  }]).then(() => renderRencana());
+}
+function openRencanaForm(id) {
+  const existing = id ? window._rencanaCache.find(r => r.ID === id) : null;
+  state.editId = id || null;
+  openModal(`
+    <h3>${existing ? 'Edit' : 'Tambah'} Rencana Tahunan</h3>
+    <div class="form-row"><label>Nama</label><input type="text" id="fNama" value="${existing ? existing.Nama : ''}" placeholder="mis. Mudik, THR, Pajak Mobil, Tuition Fee"></div>
+    <div class="form-row"><label>Kelompok</label><input type="text" id="fKelompok" value="${existing ? existing.Kelompok : ''}" placeholder="mis. Hari Raya, Pajak, Pendidikan, Maintenance, Liburan"></div>
+    <div class="form-row"><label>Target Tanggal / Waktu (opsional)</label><input type="text" id="fTarget" value="${existing ? (existing.TanggalTarget||'') : ''}" placeholder="mis. 2026-04-10 atau 'Feb & Agu'"></div>
+    <div class="form-row"><label>Estimasi (Rp)</label><input type="number" id="fEstimasi" value="${existing ? existing.Estimasi : ''}"></div>
+    <div class="form-row"><label>Actual (Rp, opsional)</label><input type="number" id="fActual" value="${existing ? existing.Actual : ''}"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn-primary" onclick="saveRencana()">Simpan</button>
+    </div>
+  `);
+}
+function saveRencana() {
+  const data = {
+    tahun: state.year,
+    nama: document.getElementById('fNama').value,
+    kelompok: document.getElementById('fKelompok').value || 'Lain-lain',
+    tanggalTarget: document.getElementById('fTarget').value,
+    estimasi: document.getElementById('fEstimasi').value,
+    actual: document.getElementById('fActual').value || 0
+  };
+  if (!data.nama || !data.estimasi) { showToast('Lengkapi nama dan estimasi'); return; }
+  if (state.editId) {
+    const existing = window._rencanaCache.find(r => r.ID === state.editId);
+    data.selesai = existing ? existing.Selesai : false;
+    call('updateRencanaTahunan', [state.editId, data]).then(() => { closeModal(); showToast('Rencana tersimpan'); renderRencana(); });
+  } else {
+    call('addRencanaTahunan', [data]).then(() => { closeModal(); showToast('Rencana tersimpan'); renderRencana(); });
+  }
+}
+function editRencana(id) { openRencanaForm(id); }
+function removeRencana(id) {
+  if (!confirm('Hapus rencana ini?')) return;
+  call('deleteRencanaTahunan', [id]).then(() => { showToast('Rencana dihapus'); renderRencana(); });
+}
+
+/* ============================== KATEGORI ============================== */
+function renderKategori() {
+  call('getKategori').then(list => {
+    state.kategori = list;
+    const pengeluaran = list.filter(k => k.Tipe === 'Pengeluaran');
+    const pemasukan = list.filter(k => k.Tipe === 'Pemasukan');
+
+    const chip = (k) => `<div class="chip">${k.Nama} <button onclick="removeKategori('${k.ID}')">✕</button></div>`;
+
+    document.getElementById('content').innerHTML = `
+      <div class="grid grid-2b">
+        <div class="card">
+          <div class="section-title">Kategori Pengeluaran</div>
+          <div class="chip-list">${pengeluaran.map(chip).join('') || '<span class="empty-state">Belum ada</span>'}</div>
+          <div style="display:flex; gap:8px; margin-top:14px;">
+            <input type="text" id="newExpenseKat" placeholder="Kategori baru...">
+            <button class="btn-primary" onclick="addKategoriInline('Pengeluaran','newExpenseKat')">Tambah</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-title">Kategori Pemasukan</div>
+          <div class="chip-list">${pemasukan.map(chip).join('') || '<span class="empty-state">Belum ada</span>'}</div>
+          <div style="display:flex; gap:8px; margin-top:14px;">
+            <input type="text" id="newIncomeKat" placeholder="Kategori baru...">
+            <button class="btn-primary" onclick="addKategoriInline('Pemasukan','newIncomeKat')">Tambah</button>
+          </div>
+        </div>
+      </div>`;
+  });
+}
+function addKategoriInline(tipe, inputId) {
+  const input = document.getElementById(inputId);
+  const nama = input.value.trim();
+  if (!nama) return;
+  call('addKategori', [{ tipe: tipe, nama: nama }]).then(() => { showToast('Kategori ditambahkan'); renderKategori(); });
+}
+function removeKategori(id) {
+  if (!confirm('Hapus kategori ini?')) return;
+  call('deleteKategori', [id]).then(() => { showToast('Kategori dihapus'); renderKategori(); });
+}
+
+/* ============================== KELOLA PENGGUNA (OWNER) ============================== */
+function renderPengguna() {
+  if (state.role !== 'Owner') {
+    document.getElementById('content').innerHTML = `<div class="card"><div class="empty-state">Halaman ini khusus untuk akun Owner.</div></div>`;
+    return;
+  }
+  call('getUsers').then(list => {
+    window._penggunaCache = list;
+    let rows = list.map(u => `
+      <tr>
+        <td>${u.Nama}</td>
+        <td>${u.Username}</td>
+        <td><span class="tag ${u.Role === 'Owner' ? 'Pemasukan' : 'Pengeluaran'}">${u.Role}</span></td>
+        <td>${u.Aktif ? 'Aktif' : 'Nonaktif'}</td>
+        <td class="row-actions">
+          <button class="btn-secondary btn-sm" onclick="editPengguna('${u.ID}')">Edit</button>
+          <button class="btn-secondary btn-sm" onclick="openResetPasswordForm('${u.ID}')">Reset Password</button>
+          <button class="btn-danger btn-sm" onclick="removePengguna('${u.ID}')">Hapus</button>
+        </td>
+      </tr>`).join('');
+
+    document.getElementById('content').innerHTML = `
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="section-title" style="margin:0;">Daftar Pengguna</div>
+          <button class="btn-primary" onclick="openPenggunaForm()">+ Tambah Pengguna</button>
+        </div>
+        <p style="color:var(--muted); font-size:13px;">Role <b>Owner</b> punya akses penuh (termasuk kelola pengguna & hapus kategori). Role <b>Admin</b> bisa input transaksi, anggaran, tagihan, tabungan, dan rencana tahunan seperti biasa.</p>
+        <table>
+          <thead><tr><th>Nama</th><th>Username</th><th>Role</th><th>Status</th><th></th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="5" class="empty-state">Belum ada pengguna</td></tr>'}</tbody>
+        </table>
+      </div>`;
+  });
+}
+function openPenggunaForm() {
+  openModal(`
+    <h3>Tambah Pengguna</h3>
+    <div class="form-row"><label>Nama</label><input type="text" id="fNama"></div>
+    <div class="form-row"><label>Username</label><input type="text" id="fUsername"></div>
+    <div class="form-row"><label>Password (min. 6 karakter)</label><input type="password" id="fPassword"></div>
+    <div class="form-row"><label>Role</label>
+      <select id="fRole"><option value="Admin">Admin</option><option value="Owner">Owner</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn-primary" onclick="savePenggunaBaru()">Simpan</button>
+    </div>
+  `);
+}
+function savePenggunaBaru() {
+  const data = {
+    nama: document.getElementById('fNama').value,
+    username: document.getElementById('fUsername').value,
+    password: document.getElementById('fPassword').value,
+    role: document.getElementById('fRole').value
+  };
+  if (!data.nama || !data.username || !data.password) { showToast('Lengkapi semua field'); return; }
+  call('addUser', [data]).then(() => { closeModal(); showToast('Pengguna ditambahkan'); renderPengguna(); });
+}
+function editPengguna(id) {
+  const u = window._penggunaCache.find(x => x.ID === id);
+  openModal(`
+    <h3>Edit Pengguna</h3>
+    <div class="form-row"><label>Nama</label><input type="text" id="fNama" value="${u.Nama}"></div>
+    <div class="form-row"><label>Username</label><input type="text" value="${u.Username}" disabled></div>
+    <div class="form-row"><label>Role</label>
+      <select id="fRole">
+        <option value="Admin" ${u.Role==='Admin'?'selected':''}>Admin</option>
+        <option value="Owner" ${u.Role==='Owner'?'selected':''}>Owner</option>
+      </select>
+    </div>
+    <div class="form-row"><label>Status</label>
+      <select id="fAktif">
+        <option value="true" ${u.Aktif?'selected':''}>Aktif</option>
+        <option value="false" ${!u.Aktif?'selected':''}>Nonaktif</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn-primary" onclick="savePenggunaEdit('${id}')">Simpan</button>
+    </div>
+  `);
+}
+function savePenggunaEdit(id) {
+  const data = {
+    nama: document.getElementById('fNama').value,
+    role: document.getElementById('fRole').value,
+    aktif: document.getElementById('fAktif').value === 'true'
+  };
+  call('updateUser', [id, data]).then(() => { closeModal(); showToast('Pengguna diperbarui'); renderPengguna(); });
+}
+function openResetPasswordForm(id) {
+  openModal(`
+    <h3>Reset Password</h3>
+    <div class="form-row"><label>Password Baru (min. 6 karakter)</label><input type="password" id="fNewPw"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn-primary" onclick="saveResetPassword('${id}')">Simpan</button>
+    </div>
+  `);
+}
+function saveResetPassword(id) {
+  const pw = document.getElementById('fNewPw').value;
+  call('resetUserPassword', [id, pw]).then(() => { closeModal(); showToast('Password berhasil direset'); });
+}
+function removePengguna(id) {
+  if (!confirm('Hapus pengguna ini?')) return;
+  call('deleteUser', [id]).then(() => { showToast('Pengguna dihapus'); renderPengguna(); });
+}
+
+/* ============================== NAVIGASI MOBILE & PWA ============================== */
+const MORE_PAGES = ['tabungan', 'rencana', 'kategori', 'pengguna'];
+
+function goPage(page) {
+  state.page = page;
+  document.querySelectorAll('.nav-item').forEach(x => x.classList.toggle('active', x.dataset.page === page));
+  document.querySelectorAll('.bn-item[data-page]').forEach(x => x.classList.toggle('active', x.dataset.page === page));
+  document.getElementById('bnMore').classList.toggle('active', MORE_PAGES.indexOf(page) > -1);
+  closeMore();
+  window.scrollTo(0, 0);
+  renderPage();
+}
+function toggleMore() { document.getElementById('moreOverlay').classList.toggle('open'); }
+function closeMore() { document.getElementById('moreOverlay').classList.remove('open'); }
+
+// Buka tab kosong dulu (sinkron dengan ketukan) supaya tidak diblokir popup blocker Android
+function openDb() {
+  const w = window.open('', '_blank');
+  call('getSpreadsheetUrl')
+    .then(url => { if (w) w.location = url; else window.location.href = url; })
+    .catch(() => { if (w) w.close(); });
+}
+
+// Tombol "Pasang aplikasi" (muncul jika Chrome mengizinkan install)
+let deferredInstall = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstall = e;
+  document.getElementById('installItem').style.display = 'flex';
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstall = null;
+  document.getElementById('installItem').style.display = 'none';
+});
+function installApp() {
+  closeMore();
+  if (!deferredInstall) return;
+  deferredInstall.prompt();
+  deferredInstall.userChoice.finally(() => { deferredInstall = null; });
+}
+
+// Tabel otomatis jadi kartu di layar kecil: beri tiap sel label dari judul kolomnya
+function makeTablesResponsive_(root) {
+  root.querySelectorAll('table:not(.rtable)').forEach(tbl => {
+    const heads = Array.from(tbl.querySelectorAll('thead th')).map(th => th.textContent.trim());
+    tbl.classList.add('rtable');
+    tbl.querySelectorAll('tbody tr, tfoot tr').forEach(tr => {
+      Array.from(tr.children).forEach((td, i) => {
+        if (td.hasAttribute('colspan')) return;
+        td.setAttribute('data-label', heads[i] || '');
+      });
+    });
+  });
+}
+(function () {
+  const content = document.getElementById('content');
+  new MutationObserver(() => makeTablesResponsive_(content)).observe(content, { childList: true, subtree: true });
+})();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+
+/* ============================== START ============================== */
+init();
+</script>
+</body>
+</html>
